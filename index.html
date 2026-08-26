@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Portal & Admin Payment System</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="container">
+    
+    <!-- ==================== 1. LOGIN & ROLE SWITCH ==================== -->
+    <div id="loginCard" style="max-width: 400px; margin: 0 auto;">
+      <h2 class="text-center" id="loginTitle">Student Login</h2>
+      <p class="subtitle" id="loginSub">Access Cashier Payment Portal</p>
+
+      <form id="studentLoginForm">
+        <div class="form-group">
+          <label for="loginStudentId">Student ID Number</label>
+          <input 
+            type="text" 
+            id="loginStudentId" 
+            placeholder="e.g. Id Number" 
+            inputmode="numeric" 
+            maxlength="9"
+            minlength="9"
+            pattern="\d{9}"
+            oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 9)" 
+            required 
+          />
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password</label>
+          <input type="password" id="loginPassword" placeholder="Enter password" required />
+        </div>
+        <button type="submit" class="btn-login">Log In as Student</button>
+      </form>
+
+      <form id="adminLoginForm" class="hidden">
+        <div class="form-group">
+          <label for="adminUsername">Admin Username</label>
+          <input type="text" id="adminUsername" placeholder="e.g. admin" required />
+        </div>
+        <div class="form-group">
+          <label for="adminPassword">Admin Password</label>
+          <input type="password" id="adminPassword" placeholder="Enter admin password" required />
+        </div>
+        <button type="submit" class="btn-login" style="background-color: #2c3e50;">Log In as Admin</button>
+      </form>
+
+      <button class="btn-switch" id="toggleRoleBtn" onclick="toggleRoleView()">Switch to Admin Login</button>
+    </div>
+
+    <!-- ==================== 2. STUDENT PORTAL ==================== -->
+    <div id="studentCard" class="hidden">
+      <div class="top-nav">
+        <div class="user-info">Logged in Student ID: <strong id="studentUserDisplay"></strong></div>
+        <button class="btn-logout" onclick="logout()">Logout</button>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchStudentTab('new-payment')">New Payment Request</button>
+        <button class="tab-btn" onclick="switchStudentTab('payment-history')">My Payment History</button>
+      </div>
+
+      <!-- Tab A: New Payment Form -->
+      <div id="tabNewPayment">
+        <h2>Submit Payment</h2>
+        <form id="queueForm">
+          <div class="form-group">
+            <label for="studentId">Student ID Number</label>
+            <input type="text" id="studentId" readonly style="background-color: #f1f1f1; cursor: not-allowed;" required />
+          </div>
+
+          <div class="form-group">
+            <label for="paymentReason">Payment Type</label>
+            <select id="paymentReason" required>
+              <option value="">-- Select Purpose --</option>
+              <option value="Tuition Fee">Tuition Fee</option>
+              <option value="GCash">GCash</option>
+              <option value="Pay to Cashier">Pay to Cashier</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Payment Method</label>
+            <div class="radio-group">
+              <label class="radio-label">
+                <input type="radio" name="paymentMethod" value="Cash Over-the-Counter" checked onclick="togglePaymentMethod('cash')"> 
+                Cash (Over-the-Counter)
+              </label>
+              <label class="radio-label">
+                <input type="radio" name="paymentMethod" value="GCash" onclick="togglePaymentMethod('gcash')"> 
+                GCash (Online)
+              </label>
+            </div>
+          </div>
+
+          <!-- Cash Payment Box -->
+          <div class="payment-box cash-box" id="cashBox">
+            <h4>Over-the-Counter Cash Payment Details</h4>
+            <div class="cash-info-list">
+              📍 <strong>Location:</strong> Main Administration Building, Cashier Windows 1-3<br>
+              🕒 <strong>Operating Hours:</strong> Monday - Friday | 8:00 AM - 5:00 PM<br>
+              💡 <strong>Note:</strong> Prepare exact amount if possible to speed up transaction time.
+            </div>
+          </div>
+
+          <!-- GCash QR Code Section -->
+          <div class="payment-box gcash-box" id="gcashBox" style="display: none;">
+            <h4>Pay GCash</h4>
+            <p style="margin: 4px 0; font-size: 13px;">Account Name: <strong>School Cashier</strong></p>
+            <p style="margin: 4px 0; font-size: 13px;">Account No: <strong>0917-123-4567</strong></p>
+            
+            <!-- Dynamic QR Code Display -->
+            <div class="qr-container">
+              <img id="displayGcashQr" src="" alt="GCash QR Code" style="display:none;" />
+              <span id="noQrText" style="color: #777; font-size: 13px;">No QR Code Uploaded</span>
+            </div>
+
+            <div class="form-group" style="text-align: left; margin-bottom: 10px;">
+              <label for="gcashAmount">Payment Amount (PHP) <span style="color:red;">*</span></label>
+              <input 
+                type="number" 
+                id="gcashAmount" 
+                placeholder="e.g. 1500" 
+                min="1" 
+              />
+            </div>
+
+            <div class="form-group" style="text-align: left; margin-bottom: 0;">
+              <label for="gcashNumber">Sender's GCash Number <span style="color:red;">*</span></label>
+              <input 
+                type="text" 
+                id="gcashNumber" 
+                placeholder="e.g. 09123456789" 
+                inputmode="numeric" 
+                maxlength="11" 
+                minlength="11"
+                oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11)" 
+              />
+            </div>
+          </div>
+
+          <button type="submit" class="btn-submit" id="submitBtn">Get Ticket Number</button>
+        </form>
+
+        <!-- Ticket / Confirmation Modal Popup -->
+        <div class="modal-overlay" id="ticketModal">
+          <div class="modal-content">
+            <div class="ticket" id="ticket" style="display: block;">
+              <div id="cashOutput" class="hidden">
+                <p style="margin:0; font-size: 13px; color: #777;">Your Ticket Number:</p>
+                <div class="queue-number" id="displayQueueNumber">PAY-1</div>
+              </div>
+
+              <div id="gcashOutput" class="hidden">
+                <h3 style="color:#005ce6; margin:0;">GCash Payment Received!</h3>
+                <p style="font-size: 14px; color: #27ae60; font-weight: bold; margin: 5px 0;">✔ Submitted for Verification</p>
+              </div>
+              
+              <div class="ticket-details">
+                <strong>Student ID:</strong> <span id="displayStudentId"></span><br>
+                <strong>Purpose:</strong> <span id="displayPurpose"></span><br>
+                <strong>Payment Method:</strong> <span id="displayMethod"></span><br>
+                <span id="amountContainer" style="display:none;">
+                  <strong>Amount Paid:</strong> ₱<span id="displayAmount"></span><br>
+                </span>
+                <span id="refContainer" style="display:none;">
+                  <strong>GCash Number No:</strong> <span id="displayGcashNum"></span><br>
+                </span>
+                <strong>Time Submitted:</strong> <span id="displayTime"></span>
+              </div>
+            </div>
+            <button class="modal-close-btn" onclick="closeTicketModal()">Close</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab B: Student Payment History -->
+      <div id="tabStudentHistory" class="hidden">
+        <h2>My Payment History</h2>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Date & Time</th>
+                <th>Purpose</th>
+                <th>Amount</th>
+                <th>Method</th>
+                <th>Ticket #</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="studentHistoryTable">
+              <!-- Dynamically Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== 3. ADMIN PORTAL ==================== -->
+    <div id="adminCard" class="hidden">
+      <div class="top-nav">
+        <div class="user-info">Logged in as: <strong>System Cashier Admin</strong></div>
+        <button class="btn-logout" onclick="logout()">Logout</button>
+      </div>
+
+      <h2>Cashier Admin Dashboard</h2>
+
+      <!-- Admin QR Management Section -->
+      <div class="payment-box">
+        <h3 style="margin-top:0;">Update Official GCash QR Code</h3>
+        <p style="font-size: 13px; color: #555; margin-top: -5px;">Upload a QR code image to enable GCash payments for students.</p>
+        <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
+          <input type="file" id="adminQrUpload" accept="image/*" />
+          <button class="btn-upload" onclick="uploadGcashQr()">Upload QR Code</button>
+        </div>
+      </div>
+
+      <!-- Metrics Row -->
+      <div class="admin-stats">
+        <div class="stat-card">
+          <h4>Total Records</h4>
+          <div class="val" id="statTotal">0</div>
+        </div>
+        <div class="stat-card">
+          <h4>Total GCash Records</h4>
+          <div class="val" id="statTotalGcash" style="color: #005ce6;">0</div>
+        </div>
+        <div class="stat-card">
+          <h4>Pending GCash</h4>
+          <div class="val" id="statPending" style="color: #f39c12;">0</div>
+        </div>
+        <div class="stat-card">
+          <h4>Cash Tickets</h4>
+          <div class="val" id="statCash" style="color: #27ae60;">0</div>
+        </div>
+        <div class="stat-card">
+          <h4>Total Payment Collected</h4>
+          <div class="val" id="statTotalAmount" style="color: #005ce6;">₱0.00</div>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchAdminTab('gcash-approvals')">GCash Approvals</button>
+        <button class="tab-btn" onclick="switchAdminTab('all-history')">All Transactions History</button>
+      </div>
+
+      <!-- Admin View 1: Pending GCash Verification -->
+      <div id="tabAdminGcash">
+        <h3>Pending GCash Verification Queue</h3>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Student ID</th>
+                <th>Purpose</th>
+                <th>Payment Amount</th>
+                <th>GCash Number #</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="adminGcashTable">
+              <!-- Dynamically Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Admin View 2: Complete System Log -->
+      <div id="tabAdminAll" class="hidden">
+        <h3>All Transaction Records</h3>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Time</th>
+                <th>Student ID</th>
+                <th>Purpose</th>
+                <th>Amount</th>
+                <th>Method</th>
+                <th>GCash Number #</th>
+                <th>Ticket #</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody id="adminAllTable">
+              <!-- Dynamically Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // --- APP DATA STORE ---
+    let transactions = [];
+    let currentQueueNumber = 1;
+    let currentUser = null;
+    let currentRole = 'student'; // 'student' or 'admin'
+    let selectedPaymentMode = 'cash'; // 'cash' or 'gcash'
+
+    // QR Code variable defaults to empty string
+    let currentGcashQrImage = "";
+
+    // Initialize UI
+    document.addEventListener("DOMContentLoaded", () => {
+      updateQrVisibility();
+      togglePaymentMethod('cash'); // Enforce default initial state to cash and Pay to Cashier
+    });
+
+    function updateQrVisibility() {
+      const qrImg = document.getElementById('displayGcashQr');
+      const noQrText = document.getElementById('noQrText');
+      if (currentGcashQrImage) {
+        qrImg.src = currentGcashQrImage;
+        qrImg.style.display = 'block';
+        if (noQrText) noQrText.style.display = 'none';
+      } else {
+        qrImg.src = '';
+        qrImg.style.display = 'none';
+        if (noQrText) noQrText.style.display = 'inline';
+      }
+    }
+
+    // --- ADMIN GCASH QR UPLOAD FUNCTION ---
+    function uploadGcashQr() {
+      const qrInput = document.getElementById('adminQrUpload');
+      if (qrInput.files && qrInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          currentGcashQrImage = e.target.result;
+          updateQrVisibility();
+          alert('GCash QR Code uploaded and updated successfully!');
+        };
+        reader.readAsDataURL(qrInput.files[0]);
+      } else {
+        alert('Please choose an image file first.');
+      }
+    }
+
+    // --- 1. LOGIN & ROLE SWITCHING ---
+    function toggleRoleView() {
+      const title = document.getElementById('loginTitle');
+      const sub = document.getElementById('loginSub');
+      const studentForm = document.getElementById('studentLoginForm');
+      const adminForm = document.getElementById('adminLoginForm');
+      const toggleBtn = document.getElementById('toggleRoleBtn');
+
+      if (currentRole === 'student') {
+        currentRole = 'admin';
+        title.textContent = 'Cashier Admin Portal';
+        sub.textContent = 'Management Login';
+        studentForm.classList.add('hidden');
+        adminForm.classList.remove('hidden');
+        toggleBtn.textContent = 'Switch to Student Login';
+      } else {
+        currentRole = 'student';
+        title.textContent = 'Student Login';
+        sub.textContent = 'Access Cashier Payment Portal';
+        adminForm.classList.add('hidden');
+        studentForm.classList.remove('hidden');
+        toggleBtn.textContent = 'Switch to Admin Login';
+      }
+    }
+
+    // Student Login Validation
+    document.getElementById('studentLoginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const studentIdInput = document.getElementById('loginStudentId').value.trim();
+      
+      if (!/^\d{9}$/.test(studentIdInput)) {
+        alert('Please enter a valid Student ID Number containing exactly 9 digits.');
+        return;
+      }
+
+      currentUser = studentIdInput;
+      document.getElementById('loginCard').classList.add('hidden');
+      document.getElementById('studentCard').classList.remove('hidden');
+      document.getElementById('studentUserDisplay').textContent = currentUser;
+      document.getElementById('studentId').value = currentUser;
+      
+      togglePaymentMethod('cash');
+      renderStudentHistory();
+    });
+
+    // Admin Login
+    document.getElementById('adminLoginForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const username = document.getElementById('adminUsername').value.trim();
+      const password = document.getElementById('adminPassword').value.trim();
+
+      if (username === 'admin' && password === 'admin123') {
+        currentUser = 'ADMIN';
+        document.getElementById('loginCard').classList.add('hidden');
+        document.getElementById('adminCard').classList.remove('hidden');
+        renderAdminDashboard();
+      } else {
+        alert('Invalid Admin credentials! Default: admin / admin123');
+      }
+    });
+
+    function logout() {
+      currentUser = null;
+      document.getElementById('studentCard').classList.add('hidden');
+      document.getElementById('adminCard').classList.add('hidden');
+      document.getElementById('loginCard').classList.remove('hidden');
+      closeTicketModal();
+      document.getElementById('queueForm').reset();
+      togglePaymentMethod('cash');
+    }
+
+    // --- 2. PAYMENT METHOD FORM TOGGLE ---
+    function togglePaymentMethod(method) {
+      if (method === 'gcash' && !currentGcashQrImage) {
+        alert('GCash payment is currently unavailable because the official GCash QR Code has not been uploaded by the admin.');
+        const cashRadio = document.querySelector('input[name="paymentMethod"][value="Cash Over-the-Counter"]');
+        if (cashRadio) cashRadio.checked = true;
+        return;
+      }
+
+      selectedPaymentMode = method;
+      const gcashBox = document.getElementById('gcashBox');
+      const cashBox = document.getElementById('cashBox');
+      const gcashAmount = document.getElementById('gcashAmount');
+      const gcashNumber = document.getElementById('gcashNumber');
+      const submitBtn = document.getElementById('submitBtn');
+      const paymentReason = document.getElementById('paymentReason');
+
+      if (method === 'gcash') {
+        gcashBox.style.display = 'block';
+        cashBox.style.display = 'none';
+        
+        // Require fields for GCash Online payments
+        gcashAmount.required = true;
+        gcashNumber.required = true;
+
+        if (paymentReason.value === 'Pay to Cashier') {
+          paymentReason.value = '';
+        }
+
+        submitBtn.textContent = 'Submit Payment Confirmation';
+        submitBtn.style.backgroundColor = '#005ce6';
+      } else {
+        // Enforce "Pay to Cashier" option automatically when cash is selected
+        if (paymentReason) {
+          paymentReason.value = "Pay to Cashier";
+        }
+
+        gcashBox.style.display = 'none';
+        cashBox.style.display = 'block';
+
+        gcashAmount.required = false;
+        gcashNumber.required = false;
+
+        gcashAmount.value = '';
+        gcashNumber.value = '';
+
+        submitBtn.textContent = 'Get Ticket Number';
+        submitBtn.style.backgroundColor = '#27ae60';
+      }
+    }
+
+    // Restrict Payment Type changing when Cash option is active
+    document.getElementById('paymentReason').addEventListener('change', function() {
+      if (selectedPaymentMode === 'cash' && this.value !== 'Pay to Cashier') {
+        alert('When paying Cash Over-the-Counter, Payment Type must be set to "Pay to Cashier".');
+        this.value = 'Pay to Cashier';
+      }
+    });
+
+    // --- 3. SUBMIT NEW PAYMENT & MODAL CONTROLS ---
+    function closeTicketModal() {
+      document.getElementById('ticketModal').classList.remove('active');
+    }
+
+    document.getElementById('queueForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+
+      const studentId = document.getElementById('studentId').value;
+      let paymentReason = document.getElementById('paymentReason').value;
+      const isGcash = selectedPaymentMode === 'gcash';
+
+      // Strict Validation Check for Purpose selection
+      if (!paymentReason) {
+        alert('Please select a Payment Type/Purpose.');
+        return;
+      }
+      
+      // Strict check for Cash: Ensure Pay to Cashier is set
+      if (!isGcash) {
+        paymentReason = "Pay to Cashier";
+        document.getElementById('paymentReason').value = "Pay to Cashier";
+      } else {
+        if (paymentReason === "Pay to Cashier") {
+          alert('Please select a valid Payment Purpose (e.g. Tuition Fee, GCash, or Other) when paying via GCash.');
+          return;
+        }
+      }
+
+      // Strict QR Check on submission
+      if (isGcash && !currentGcashQrImage) {
+        alert('Cannot process GCash payment. No valid GCash QR Code is available.');
+        return;
+      }
+
+      const paymentMethod = isGcash ? 'GCash' : 'Cash Over-the-Counter';
+      const gcashAmt = document.getElementById('gcashAmount').value;
+      const gcashNum = document.getElementById('gcashNumber').value.trim();
+      const timeIssued = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      // Required Field enforcement for Online GCash Payments
+      if (isGcash) {
+        if (!gcashAmt || parseFloat(gcashAmt) <= 0) {
+          alert('Please enter a valid GCash payment amount.');
+          return;
+        }
+        if (!/^09\d{9}$/.test(gcashNum)) {
+          alert('Please enter a valid 11-digit GCash mobile number starting with 09.');
+          return;
+        }
+      }
+
+      let numericValue = isGcash ? (parseFloat(gcashAmt) || 0) : 0;
+      let formattedAmount = isGcash ? `₱${numericValue.toLocaleString()}` : 'N/A';
+
+      let record = {
+        id: 'TXN-' + Date.now().toString().slice(-5),
+        studentId: studentId,
+        purpose: paymentReason,
+        method: paymentMethod,
+        time: timeIssued,
+        status: isGcash ? 'Pending Verification' : 'Ticket Issued',
+        amount: formattedAmount,
+        numericAmount: numericValue,
+        gcashNum: isGcash ? gcashNum : 'N/A',
+        ticketNo: `PAY-${currentQueueNumber}`
+      };
+
+      transactions.push(record);
+
+      const ticketCard = document.getElementById('ticket');
+      document.getElementById('displayStudentId').textContent = studentId;
+      document.getElementById('displayPurpose').textContent = paymentReason;
+      document.getElementById('displayTime').textContent = timeIssued;
+
+      if (isGcash) {
+        ticketCard.className = 'ticket ticket-gcash';
+        document.getElementById('cashOutput').classList.add('hidden');
+        document.getElementById('gcashOutput').classList.remove('hidden');
+        document.getElementById('displayMethod').innerHTML = `<span class="badge badge-gcash">GCash Online</span>`;
+        document.getElementById('displayAmount').textContent = parseFloat(gcashAmt).toLocaleString();
+        document.getElementById('displayGcashNum').textContent = gcashNum;
+        
+        document.getElementById('amountContainer').style.display = 'inline';
+        document.getElementById('refContainer').style.display = 'inline';
+      } else {
+        ticketCard.className = 'ticket ticket-cash';
+        document.getElementById('gcashOutput').classList.add('hidden');
+        document.getElementById('cashOutput').classList.remove('hidden');
+        document.getElementById('displayQueueNumber').textContent = `PAY-${currentQueueNumber}`;
+        document.getElementById('displayMethod').innerHTML = `<span class="badge badge-cash">Cash Counter</span>`;
+
+        document.getElementById('amountContainer').style.display = 'none';
+        document.getElementById('refContainer').style.display = 'none';
+        currentQueueNumber++;
+      }
+
+      document.getElementById('ticketModal').classList.add('active');
+      renderStudentHistory();
+    });
+
+    // --- 4. NAVIGATION TABS LOGIC ---
+    function switchStudentTab(tab) {
+      const tabs = document.querySelectorAll('#studentCard .tab-btn');
+      tabs.forEach(t => t.classList.remove('active'));
+
+      if (tab === 'new-payment') {
+        tabs[0].classList.add('active');
+        document.getElementById('tabNewPayment').classList.remove('hidden');
+        document.getElementById('tabStudentHistory').classList.add('hidden');
+      } else {
+        tabs[1].classList.add('active');
+        document.getElementById('tabNewPayment').classList.add('hidden');
+        document.getElementById('tabStudentHistory').classList.remove('hidden');
+        renderStudentHistory();
+      }
+    }
+
+    function switchAdminTab(tab) {
+      const tabs = document.querySelectorAll('#adminCard .tab-btn');
+      tabs.forEach(t => t.classList.remove('active'));
+
+      if (tab === 'gcash-approvals') {
+        tabs[0].classList.add('active');
+        document.getElementById('tabAdminGcash').classList.remove('hidden');
+        document.getElementById('tabAdminAll').classList.add('hidden');
+      } else {
+        tabs[1].classList.add('active');
+        document.getElementById('tabAdminGcash').classList.add('hidden');
+        document.getElementById('tabAdminAll').classList.remove('hidden');
+      }
+      renderAdminDashboard();
+    }
+
+    // --- 5. HISTORY & ADMIN RENDERING ---
+    function renderStudentHistory() {
+      const tbody = document.getElementById('studentHistoryTable');
+      tbody.innerHTML = '';
+
+      const userRecords = transactions.filter(t => t.studentId === currentUser);
+
+      if (userRecords.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#888;">No transaction history found.</td></tr>`;
+        return;
+      }
+
+      userRecords.reverse().forEach(t => {
+        let statusBadge = `<span class="badge badge-pending">Pending</span>`;
+        if (t.status === 'Approved' || t.status === 'Ticket Issued') {
+          statusBadge = `<span class="badge badge-approved">${t.status}</span>`;
+        } else if (t.status === 'Rejected') {
+          statusBadge = `<span class="badge badge-rejected">Rejected</span>`;
+        }
+
+        tbody.innerHTML += `
+          <tr>
+            <td>${t.time}</td>
+            <td>${t.purpose}</td>
+            <td><strong>${t.amount}</strong></td>
+            <td>${t.method === 'GCash' ? '<span class="badge badge-gcash">GCash</span>' : '<span class="badge badge-cash">Cash</span>'}</td>
+            <td>${t.ticketNo}</td>
+            <td>${statusBadge}</td>
+          </tr>
+        `;
+      });
+    }
+
+    function renderAdminDashboard() {
+      document.getElementById('statTotal').textContent = transactions.length;
+      document.getElementById('statTotalGcash').textContent = transactions.filter(t => t.method === 'GCash').length;
+      document.getElementById('statPending').textContent = transactions.filter(t => t.status === 'Pending Verification').length;
+      document.getElementById('statCash').textContent = transactions.filter(t => t.method !== 'GCash').length;
+
+      const totalCollected = transactions
+        .filter(t => t.status === 'Approved')
+        .reduce((sum, t) => sum + (t.numericAmount || 0), 0);
+
+      document.getElementById('statTotalAmount').textContent = `₱${totalCollected.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+      const gcashTbody = document.getElementById('adminGcashTable');
+      gcashTbody.innerHTML = '';
+      const pendingGcash = transactions.filter(t => t.method === 'GCash' && t.status === 'Pending Verification');
+
+      if (pendingGcash.length === 0) {
+        gcashTbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#888;">No pending GCash verifications.</td></tr>`;
+      } else {
+        pendingGcash.forEach(t => {
+          gcashTbody.innerHTML += `
+            <tr>
+              <td>${t.time}</td>
+              <td><strong>${t.studentId}</strong></td>
+              <td>${t.purpose}</td>
+              <td><strong>${t.amount}</strong></td>
+              <td>${t.gcashNum}</td>
+              <td>
+                <button class="btn-approve" onclick="updateStatus('${t.id}', 'Approved')">Approve</button>
+                <button class="btn-reject" onclick="updateStatus('${t.id}', 'Rejected')">Reject</button>
+              </td>
+            </tr>
+          `;
+        });
+      }
+
+      const allTbody = document.getElementById('adminAllTable');
+      allTbody.innerHTML = '';
+
+      if (transactions.length === 0) {
+        allTbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:#888;">No system transactions recorded yet.</td></tr>`;
+      } else {
+        [...transactions].reverse().forEach(t => {
+          let statusBadge = `<span class="badge badge-pending">${t.status}</span>`;
+          if (t.status === 'Approved' || t.status === 'Ticket Issued') {
+            statusBadge = `<span class="badge badge-approved">${t.status}</span>`;
+          } else if (t.status === 'Rejected') {
+            statusBadge = `<span class="badge badge-rejected">Rejected</span>`;
+          }
+
+          let gcashMobileCell = t.method === 'GCash' ? t.gcashNum : 'N/A';
+
+          allTbody.innerHTML += `
+            <tr>
+              <td><small>${t.id}</small></td>
+              <td>${t.time}</td>
+              <td>${t.studentId}</td>
+              <td>${t.purpose}</td>
+              <td><strong>${t.amount}</strong></td>
+              <td>${t.method}</td>
+              <td>${gcashMobileCell}</td>
+              <td>${t.ticketNo}</td>
+              <td>${statusBadge}</td>
+            </tr>
+          `;
+        });
+      }
+    }
+
+    function updateStatus(id, newStatus) {
+      const record = transactions.find(t => t.id === id);
+      if (record) {
+        record.status = newStatus;
+        renderAdminDashboard();
+      }
+    }
+  </script>
+
+</body>
+</html>
