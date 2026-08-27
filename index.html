@@ -77,10 +77,8 @@
             <label for="paymentReason">Payment Type</label>
             <select id="paymentReason" required>
               <option value="">-- Select Purpose --</option>
-              <option value="Tuition Fee">Tuition Fee</option>
               <option value="GCash">GCash</option>
               <option value="Pay to Cashier">Pay to Cashier</option>
-              <option value="Other">Other</option>
             </select>
           </div>
 
@@ -120,26 +118,17 @@
               <span id="noQrText" style="color: #777; font-size: 13px;">No QR Code Uploaded</span>
             </div>
 
-            <div class="form-group" style="text-align: left; margin-bottom: 10px;">
-              <label for="gcashAmount">Payment Amount (PHP) <span style="color:red;">*</span></label>
-              <input 
-                type="number" 
-                id="gcashAmount" 
-                placeholder="e.g. 1500" 
-                min="1" 
-              />
-            </div>
-
             <div class="form-group" style="text-align: left; margin-bottom: 0;">
-              <label for="gcashNumber">Sender's GCash Number <span style="color:red;">*</span></label>
+              <label for="gcashRefNumber">Reference Number <span style="color:red;">*</span></label>
               <input 
                 type="text" 
-                id="gcashNumber" 
-                placeholder="e.g. 09123456789" 
+                id="gcashRefNumber" 
+                placeholder="e.g. 1002345678901" 
                 inputmode="numeric" 
-                maxlength="11" 
-                minlength="11"
-                oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 11)" 
+                maxlength="13"
+                minlength="13"
+                pattern="\d{13}"
+                oninput="this.value = this.value.replace(/[^0-9]/g, '').slice(0, 13)" 
               />
             </div>
           </div>
@@ -165,11 +154,8 @@
                 <strong>Student ID:</strong> <span id="displayStudentId"></span><br>
                 <strong>Purpose:</strong> <span id="displayPurpose"></span><br>
                 <strong>Payment Method:</strong> <span id="displayMethod"></span><br>
-                <span id="amountContainer" style="display:none;">
-                  <strong>Amount Paid:</strong> ₱<span id="displayAmount"></span><br>
-                </span>
                 <span id="refContainer" style="display:none;">
-                  <strong>GCash Number No:</strong> <span id="displayGcashNum"></span><br>
+                  <strong>Reference No:</strong> <span id="displayGcashRef"></span><br>
                 </span>
                 <strong>Time Submitted:</strong> <span id="displayTime"></span>
               </div>
@@ -188,8 +174,8 @@
               <tr>
                 <th>Date & Time</th>
                 <th>Purpose</th>
-                <th>Amount</th>
                 <th>Method</th>
+                <th>Reference #</th>
                 <th>Ticket #</th>
                 <th>Status</th>
               </tr>
@@ -239,10 +225,6 @@
           <h4>Cash Tickets</h4>
           <div class="val" id="statCash" style="color: #27ae60;">0</div>
         </div>
-        <div class="stat-card">
-          <h4>Total Payment Collected</h4>
-          <div class="val" id="statTotalAmount" style="color: #005ce6;">₱0.00</div>
-        </div>
       </div>
 
       <div class="tabs">
@@ -260,8 +242,7 @@
                 <th>Time</th>
                 <th>Student ID</th>
                 <th>Purpose</th>
-                <th>Payment Amount</th>
-                <th>GCash Number #</th>
+                <th>Reference #</th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -283,9 +264,8 @@
                 <th>Time</th>
                 <th>Student ID</th>
                 <th>Purpose</th>
-                <th>Amount</th>
                 <th>Method</th>
-                <th>GCash Number #</th>
+                <th>Reference #</th>
                 <th>Ticket #</th>
                 <th>Status</th>
               </tr>
@@ -430,8 +410,7 @@
       selectedPaymentMode = method;
       const gcashBox = document.getElementById('gcashBox');
       const cashBox = document.getElementById('cashBox');
-      const gcashAmount = document.getElementById('gcashAmount');
-      const gcashNumber = document.getElementById('gcashNumber');
+      const gcashRefNumber = document.getElementById('gcashRefNumber');
       const submitBtn = document.getElementById('submitBtn');
       const paymentReason = document.getElementById('paymentReason');
 
@@ -439,13 +418,13 @@
         gcashBox.style.display = 'block';
         cashBox.style.display = 'none';
         
-        // Require fields for GCash Online payments
-        gcashAmount.required = true;
-        gcashNumber.required = true;
-
-        if (paymentReason.value === 'Pay to Cashier') {
-          paymentReason.value = '';
+        // Enforce Payment Type to "GCash" for online GCash payments
+        if (paymentReason) {
+          paymentReason.value = "GCash";
         }
+
+        // Require Reference Number for GCash Online payments
+        gcashRefNumber.required = true;
 
         submitBtn.textContent = 'Submit Payment Confirmation';
         submitBtn.style.backgroundColor = '#005ce6';
@@ -458,22 +437,22 @@
         gcashBox.style.display = 'none';
         cashBox.style.display = 'block';
 
-        gcashAmount.required = false;
-        gcashNumber.required = false;
-
-        gcashAmount.value = '';
-        gcashNumber.value = '';
+        gcashRefNumber.required = false;
+        gcashRefNumber.value = '';
 
         submitBtn.textContent = 'Get Ticket Number';
         submitBtn.style.backgroundColor = '#27ae60';
       }
     }
 
-    // Restrict Payment Type changing when Cash option is active
+    // Restrict Payment Type changing based on selected method
     document.getElementById('paymentReason').addEventListener('change', function() {
       if (selectedPaymentMode === 'cash' && this.value !== 'Pay to Cashier') {
         alert('When paying Cash Over-the-Counter, Payment Type must be set to "Pay to Cashier".');
         this.value = 'Pay to Cashier';
+      } else if (selectedPaymentMode === 'gcash' && this.value !== 'GCash') {
+        alert('When paying online, Payment Type must be set to "GCash".');
+        this.value = 'GCash';
       }
     });
 
@@ -489,21 +468,13 @@
       let paymentReason = document.getElementById('paymentReason').value;
       const isGcash = selectedPaymentMode === 'gcash';
 
-      // Strict Validation Check for Purpose selection
-      if (!paymentReason) {
-        alert('Please select a Payment Type/Purpose.');
-        return;
-      }
-      
-      // Strict check for Cash: Ensure Pay to Cashier is set
+      // Strict enforcement based on payment mode
       if (!isGcash) {
         paymentReason = "Pay to Cashier";
         document.getElementById('paymentReason').value = "Pay to Cashier";
       } else {
-        if (paymentReason === "Pay to Cashier") {
-          alert('Please select a valid Payment Purpose (e.g. Tuition Fee, GCash, or Other) when paying via GCash.');
-          return;
-        }
+        paymentReason = "GCash";
+        document.getElementById('paymentReason').value = "GCash";
       }
 
       // Strict QR Check on submission
@@ -513,24 +484,23 @@
       }
 
       const paymentMethod = isGcash ? 'GCash' : 'Cash Over-the-Counter';
-      const gcashAmt = document.getElementById('gcashAmount').value;
-      const gcashNum = document.getElementById('gcashNumber').value.trim();
+      const gcashRef = document.getElementById('gcashRefNumber').value.trim();
       const timeIssued = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-      // Required Field enforcement for Online GCash Payments
+      // Required Field and Exact 13-Digit Enforcement for GCash Payments
       if (isGcash) {
-        if (!gcashAmt || parseFloat(gcashAmt) <= 0) {
-          alert('Please enter a valid GCash payment amount.');
+        if (!/^\d{13}$/.test(gcashRef)) {
+          alert('Please enter a valid GCash Reference Number containing exactly 13 digits.');
           return;
         }
-        if (!/^09\d{9}$/.test(gcashNum)) {
-          alert('Please enter a valid 11-digit GCash mobile number starting with 09.');
+
+        // Prevent Duplicate Reference Number Check
+        const isDuplicate = transactions.some(t => t.refNum === gcashRef);
+        if (isDuplicate) {
+          alert('This Reference Number has already been used. Duplicate reference numbers are not allowed.');
           return;
         }
       }
-
-      let numericValue = isGcash ? (parseFloat(gcashAmt) || 0) : 0;
-      let formattedAmount = isGcash ? `₱${numericValue.toLocaleString()}` : 'N/A';
 
       let record = {
         id: 'TXN-' + Date.now().toString().slice(-5),
@@ -539,9 +509,7 @@
         method: paymentMethod,
         time: timeIssued,
         status: isGcash ? 'Pending Verification' : 'Ticket Issued',
-        amount: formattedAmount,
-        numericAmount: numericValue,
-        gcashNum: isGcash ? gcashNum : 'N/A',
+        refNum: isGcash ? gcashRef : 'N/A',
         ticketNo: `PAY-${currentQueueNumber}`
       };
 
@@ -557,10 +525,8 @@
         document.getElementById('cashOutput').classList.add('hidden');
         document.getElementById('gcashOutput').classList.remove('hidden');
         document.getElementById('displayMethod').innerHTML = `<span class="badge badge-gcash">GCash Online</span>`;
-        document.getElementById('displayAmount').textContent = parseFloat(gcashAmt).toLocaleString();
-        document.getElementById('displayGcashNum').textContent = gcashNum;
+        document.getElementById('displayGcashRef').textContent = gcashRef;
         
-        document.getElementById('amountContainer').style.display = 'inline';
         document.getElementById('refContainer').style.display = 'inline';
       } else {
         ticketCard.className = 'ticket ticket-cash';
@@ -569,7 +535,6 @@
         document.getElementById('displayQueueNumber').textContent = `PAY-${currentQueueNumber}`;
         document.getElementById('displayMethod').innerHTML = `<span class="badge badge-cash">Cash Counter</span>`;
 
-        document.getElementById('amountContainer').style.display = 'none';
         document.getElementById('refContainer').style.display = 'none';
         currentQueueNumber++;
       }
@@ -635,8 +600,8 @@
           <tr>
             <td>${t.time}</td>
             <td>${t.purpose}</td>
-            <td><strong>${t.amount}</strong></td>
             <td>${t.method === 'GCash' ? '<span class="badge badge-gcash">GCash</span>' : '<span class="badge badge-cash">Cash</span>'}</td>
+            <td>${t.refNum}</td>
             <td>${t.ticketNo}</td>
             <td>${statusBadge}</td>
           </tr>
@@ -650,18 +615,12 @@
       document.getElementById('statPending').textContent = transactions.filter(t => t.status === 'Pending Verification').length;
       document.getElementById('statCash').textContent = transactions.filter(t => t.method !== 'GCash').length;
 
-      const totalCollected = transactions
-        .filter(t => t.status === 'Approved')
-        .reduce((sum, t) => sum + (t.numericAmount || 0), 0);
-
-      document.getElementById('statTotalAmount').textContent = `₱${totalCollected.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
       const gcashTbody = document.getElementById('adminGcashTable');
       gcashTbody.innerHTML = '';
       const pendingGcash = transactions.filter(t => t.method === 'GCash' && t.status === 'Pending Verification');
 
       if (pendingGcash.length === 0) {
-        gcashTbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#888;">No pending GCash verifications.</td></tr>`;
+        gcashTbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:#888;">No pending GCash verifications.</td></tr>`;
       } else {
         pendingGcash.forEach(t => {
           gcashTbody.innerHTML += `
@@ -669,8 +628,7 @@
               <td>${t.time}</td>
               <td><strong>${t.studentId}</strong></td>
               <td>${t.purpose}</td>
-              <td><strong>${t.amount}</strong></td>
-              <td>${t.gcashNum}</td>
+              <td>${t.refNum}</td>
               <td>
                 <button class="btn-approve" onclick="updateStatus('${t.id}', 'Approved')">Approve</button>
                 <button class="btn-reject" onclick="updateStatus('${t.id}', 'Rejected')">Reject</button>
@@ -684,7 +642,7 @@
       allTbody.innerHTML = '';
 
       if (transactions.length === 0) {
-        allTbody.innerHTML = `<tr><td colspan="9" style="text-align:center; color:#888;">No system transactions recorded yet.</td></tr>`;
+        allTbody.innerHTML = `<tr><td colspan="8" style="text-align:center; color:#888;">No system transactions recorded yet.</td></tr>`;
       } else {
         [...transactions].reverse().forEach(t => {
           let statusBadge = `<span class="badge badge-pending">${t.status}</span>`;
@@ -694,17 +652,14 @@
             statusBadge = `<span class="badge badge-rejected">Rejected</span>`;
           }
 
-          let gcashMobileCell = t.method === 'GCash' ? t.gcashNum : 'N/A';
-
           allTbody.innerHTML += `
             <tr>
               <td><small>${t.id}</small></td>
               <td>${t.time}</td>
               <td>${t.studentId}</td>
               <td>${t.purpose}</td>
-              <td><strong>${t.amount}</strong></td>
               <td>${t.method}</td>
-              <td>${gcashMobileCell}</td>
+              <td>${t.refNum}</td>
               <td>${t.ticketNo}</td>
               <td>${statusBadge}</td>
             </tr>
