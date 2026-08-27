@@ -350,11 +350,13 @@ button:hover {
 }
 
 .admin-stats { 
-  display: grid; 
-  grid-template-columns: repeat(5, 1fr);
-  gap: 10px; 
-  margin-bottom: 20px; 
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
   width: 100%;
+  flex-wrap: wrap;
 }
 
 .stat-card {
